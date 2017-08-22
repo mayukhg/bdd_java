@@ -1,0 +1,118 @@
+plugins {
+    id 'nu.studer.jooq' version '2.0.7'
+}
+
+apply plugin: 'java'
+apply plugin: 'idea'
+
+
+def environment = System.getProperty("environment") != null ? System.getProperty("environment") : "local"
+
+configurations {
+    cucumberRuntime {
+        extendsFrom testRuntime
+    }
+}
+
+task cucumber() {
+    dependsOn assemble, compileTestJava
+    doLast {
+        javaexec {
+            /* Can pass all the properties: */
+            systemProperty "environment",  System.getProperty("environment", "local")
+            main = "cucumber.api.cli.Main"
+            classpath = configurations.cucumberRuntime + sourceSets.main.output + sourceSets.test.output
+            args = ['--plugin', 'pretty', '--plugin', 'json:reports/cucumber_results.json', '--glue', 'com.pbl.cucumber.steps', "src/test/resources/cucumber"]
+        }
+    }
+}
+
+dependencies {
+    compile 'org.jooq:jooq:3.9.5'
+    compile 'org.jooq:jooq-codegen:3.9.5'
+    compile 'org.jooq:jooq-meta:3.9.5'
+
+    compile 'org.apache.commons:commons-dbcp2:2.1.1'
+
+    compile 'com.hierynomus:sshj:0.21.1'
+
+    compileOnly 'org.projectlombok:lombok:1.16.18'
+
+    compile 'org.springframework:spring-test:4.2.2.RELEASE'
+    compile 'org.springframework:spring-context:4.2.2.RELEASE'
+    compile 'org.springframework:spring-web:4.2.2.RELEASE'
+    compile 'org.springframework:spring-jdbc:4.2.2.RELEASE'
+
+    compile 'com.fasterxml.jackson.dataformat:jackson-dataformat-csv:2.9.0'
+
+    compile 'info.cukes:cucumber-java:1.2.5'
+    compile 'info.cukes:cucumber-junit:1.2.5'
+    compile 'info.cukes:cucumber-spring:1.2.5'
+    compile 'org.jooq:jooq:3.9.5'
+    compile 'org.jooq:jooq-codegen:3.9.5'
+    compile 'org.jooq:jooq-meta:3.9.5'
+
+    compile 'mysql:mysql-connector-java:6.0.6'
+
+    compile 'org.apache.commons:commons-dbcp2:2.1.1'
+
+    compile 'org.apache.logging.log4j:log4j-core:2.8.2'
+    compile 'org.slf4j:slf4j-log4j12:1.7.25'
+
+    compile 'junit:junit:4.12'
+    jooqRuntime 'mysql:mysql-connector-java:6.0.6'
+
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+jooq {
+    version = '3.9.5'
+    edition = 'OSS'
+    Properties props = new Properties()
+    props.load(new FileInputStream("src/main/resources/" + environment + "-configuration.properties"))
+    CompleteMarketPlace(sourceSets.main) {
+        jdbc {
+            driver = props."db.driver"
+            url = props."db.url"
+            user = props."db.username"
+            password = props."db.password"
+            properties {
+                property {
+                    key = 'ssl'
+                    value = 'true'
+                }
+            }
+        }
+        generator {
+            name = 'org.jooq.util.DefaultGenerator'
+            strategy {
+                name = 'org.jooq.util.DefaultGeneratorStrategy'
+                // ...
+            }
+            database {
+                name = 'org.jooq.util.mysql.MySQLDatabase'
+                schemata {
+                    schema {
+                        inputSchema = 'pbl'
+                    }
+                }
+            }
+            generate {
+                relations = true
+                deprecated = false
+                records = true
+                immutablePojos = true
+                fluentSetters = true
+                // ...
+            }
+            target {
+                packageName = 'pbl.dao'
+                directory = 'db/generated'
+            }
+        }
+    }
+}
